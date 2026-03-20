@@ -60,6 +60,25 @@ An online classroom platform for a language school, enabling students to purchas
 - Prices are stored in `professor_pricing` and displayed to students during the purchase flow.
 - When a student selects a professor, the prices shown are that professor's specific rates.
 
+### 4.4 Coupons & Promotional Discounts
+- The platform supports **coupons** as a promotional discount mechanism.
+- Coupons may be applied to:
+  - lesson packages
+  - single lessons
+  - video courses
+  - optionally group classes in a later phase
+- A coupon may define either:
+  - a **percentage discount** (e.g. 10% off), or
+  - a **fixed discount amount** (e.g. 15 EUR off)
+- Coupons may be limited by:
+  - validity period (`valid_from`, `valid_until`)
+  - total usage limit
+  - per-student usage limit
+  - applicable item type (`package`, `single_lesson`, `course`, `group_class`)
+- Coupons must be validated **server-side** before order creation.
+- Final charged amount, applied discount amount, and coupon code must be stored with the transaction for auditability.
+- Coupons are promotional discounts only; they do **not** override cancellation, refund, or package validity rules.
+
 ---
 
 ## 5. Database Schema
@@ -151,7 +170,37 @@ paypal_order_id VARCHAR
 invoice_number  VARCHAR UNIQUE
 reference_type  ENUM('package', 'single_lesson', 'course', 'group_class')
 reference_id    UUID
+coupon_id       UUID FK -> coupons (nullable)
+coupon_code     VARCHAR
+discount_amount DECIMAL(10,2) DEFAULT 0
 created_at      TIMESTAMP DEFAULT NOW()
+```
+
+### coupons
+```
+id                  UUID PK
+code                VARCHAR UNIQUE NOT NULL
+description         VARCHAR
+discount_type       ENUM('percentage', 'fixed') NOT NULL
+discount_value      DECIMAL(10,2) NOT NULL
+currency            VARCHAR(3)                 -- required for fixed discounts
+applicable_to       ENUM('package', 'single_lesson', 'course', 'group_class')
+valid_from          TIMESTAMP
+valid_until         TIMESTAMP
+max_total_uses      INT
+max_uses_per_user   INT
+is_active           BOOLEAN DEFAULT TRUE
+created_at          TIMESTAMP DEFAULT NOW()
+```
+
+### coupon_redemptions
+```
+id              UUID PK
+coupon_id       UUID FK -> coupons
+student_id      UUID FK -> users
+transaction_id  UUID FK -> transactions
+redeemed_at     TIMESTAMP DEFAULT NOW()
+discount_amount DECIMAL(10,2) NOT NULL
 ```
 
 ### video_courses
@@ -354,14 +403,16 @@ VIMEO_ALLOWED_DOMAIN=yourdomain.com
 **Single Class flow:**
 1. Student selects a professor → sees that professor's single class price
 2. Selects an available time slot
-3. PayPal payment → on success: lesson created (`is_paid = true`, `student_package_id = null`)
+3. Optionally enters a coupon code → system validates discount server-side
+4. PayPal payment → on success: lesson created (`is_paid = true`, `student_package_id = null`)
 4. Transaction recorded with `reference_type = 'single_lesson'`
 
 **Package flow:**
 1. Student selects a professor → sees that professor's package prices
-2. Selects a package → PayPal payment
-3. On success: `student_packages` created, `activated_at = now()`, `expires_at = now() + validity_days`
-4. Student books lessons against the active package
+2. Optionally enters a coupon code → system validates discount server-side
+3. Selects a package → PayPal payment
+4. On success: `student_packages` created, `activated_at = now()`, `expires_at = now() + validity_days`
+5. Student books lessons against the active package
 
 ### 8.2 Student — Active Package Widget
 Displayed only when student has an active package:
@@ -386,10 +437,15 @@ Columns: Date & Time | Duration | Professor | Paid | Status | Cancellation Type 
 ### 8.6 Student — Transactions
 Columns: Date | Status | Amount | Currency | Method (PayPal/Card)
 - Download Invoice → PDF with invoice number, date, student info, item, amount, method
+- If a coupon is used, invoice and transaction details also show:
+  - coupon code
+  - discount amount
+  - original subtotal vs final charged amount
 
 ### 8.7 Student — Video Courses
 - Browse catalog by language/level
 - Purchase via PayPal
+- Optional coupon code at checkout
 - Watch modules via Vimeo embedded player (see Section 6)
 - Progress tracked per module
 
@@ -419,7 +475,7 @@ Select student → view active package → set new expiry date → confirm
 
 ### 8.13 PayPal Integration
 - **PayPal Orders API v2**
-- Flow: Create Order → PayPal redirect → Capture → Update DB
+- Flow: Validate coupon (optional) → Create Order → PayPal redirect → Capture → Update DB
 - Webhooks for async events
 - `paypal_order_id` stored in transactions
 - Sandbox support for development
@@ -445,6 +501,7 @@ Select student → view active package → set new expiry date → confirm
 - `GET /api/packages/pricing/[professorId]` — professor's prices for all package types
 - `POST /api/packages/purchase` — initiate PayPal order for a package
 - `POST /api/lessons/purchase-single` — PayPal order for single class + slot
+- `POST /api/coupons/validate` — validate coupon code and compute discount for a given item
 
 ### Lessons
 - `GET /api/lessons` — student's lessons
@@ -468,6 +525,10 @@ Select student → view active package → set new expiry date → confirm
 - `GET /api/admin/stats` — KPI data
 - `GET /api/admin/transactions` — all transactions with filters
 - `PATCH /api/admin/student-packages/[id]/extend` — extend package
+- `GET /api/admin/coupons` — list coupons
+- `POST /api/admin/coupons` — create coupon
+- `PATCH /api/admin/coupons/[id]` — update coupon
+- `POST /api/admin/coupons/[id]/deactivate` — deactivate coupon
 
 ### Professor
 - `GET /api/professor/stats` — KPI data
@@ -506,6 +567,7 @@ Select student → view active package → set new expiry date → confirm
 ### Phase 2 — Student Core
 - Per-professor pricing display
 - Single class + package purchase with PayPal
+- Coupon support for promotional discounts
 - Lesson booking (time slot selection)
 - 12-hour cancellation policy enforcement
 - Student dashboard (active package widget, lesson list, transactions)
@@ -522,6 +584,7 @@ Select student → view active package → set new expiry date → confirm
 - Transaction management with filters
 - Package extension tool
 - Professor pricing override
+- Coupon management for promotional campaigns
 
 ### Phase 5 — Video Courses & Group Classes
 - Course catalog + purchase flow
