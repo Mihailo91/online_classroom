@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,9 +7,221 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================
-// ENUMS
-// ============================================
+model User {
+  id                    String                  @id @default(uuid())
+  email                 String                  @unique
+  passwordHash          String                  @map("password_hash")
+  name                  String
+  role                  UserRole
+  avatarUrl             String?                 @map("avatar_url")
+  createdAt             DateTime                @default(now()) @map("created_at")
+  groupClassEnrollments GroupClassEnrollment[]  @relation("StudentEnrollments")
+  professorGroupClasses GroupClass[]            @relation("ProfessorGroupClasses")
+  professorLessons      Lesson[]                @relation("ProfessorLessons")
+  studentLessons        Lesson[]                @relation("StudentLessons")
+  professorAvailability ProfessorAvailability[] @relation("ProfessorAvailability")
+  professorPricing      ProfessorPricing[]      @relation("ProfessorPricing")
+  studentCourses        StudentCourse[]         @relation("StudentCourses")
+  studentModuleProgress StudentModuleProgress[] @relation("StudentModuleProgress")
+  professorPackages     StudentPackage[]        @relation("ProfessorPackages")
+  studentPackages       StudentPackage[]        @relation("StudentPackages")
+  studentTransactions   Transaction[]           @relation("StudentTransactions")
+  createdCourses        VideoCourse[]           @relation("CourseCreator")
+
+  @@map("users")
+}
+
+model Package {
+  id               String             @id @default(uuid())
+  name             String
+  lessonCount      Int                @map("lesson_count")
+  validityDays     Int?               @map("validity_days")
+  isActive         Boolean            @default(true) @map("is_active")
+  professorPricing ProfessorPricing[] @relation("PackagePricing")
+  studentPackages  StudentPackage[]   @relation("PackageStudents")
+
+  @@map("packages")
+}
+
+model ProfessorPricing {
+  id          String  @id @default(uuid())
+  professorId String  @map("professor_id")
+  packageId   String  @map("package_id")
+  price       Decimal @db.Decimal(10, 2)
+  currency    String  @default("EUR") @db.VarChar(3)
+  isActive    Boolean @default(true) @map("is_active")
+  package     Package @relation("PackagePricing", fields: [packageId], references: [id], onDelete: Cascade)
+  professor   User    @relation("ProfessorPricing", fields: [professorId], references: [id], onDelete: Cascade)
+
+  @@unique([professorId, packageId])
+  @@map("professor_pricing")
+}
+
+model StudentPackage {
+  id            String        @id @default(uuid())
+  studentId     String        @map("student_id")
+  packageId     String        @map("package_id")
+  professorId   String        @map("professor_id")
+  transactionId String        @map("transaction_id")
+  activatedAt   DateTime?     @map("activated_at")
+  expiresAt     DateTime?     @map("expires_at")
+  totalLessons  Int           @map("total_lessons")
+  usedLessons   Int           @default(0) @map("used_lessons")
+  status        PackageStatus @default(active)
+  lessons       Lesson[]      @relation("PackageLessons")
+  package       Package       @relation("PackageStudents", fields: [packageId], references: [id], onDelete: Cascade)
+  professor     User          @relation("ProfessorPackages", fields: [professorId], references: [id], onDelete: Cascade)
+  student       User          @relation("StudentPackages", fields: [studentId], references: [id], onDelete: Cascade)
+  transaction   Transaction   @relation("PackageTransaction", fields: [transactionId], references: [id])
+
+  @@map("student_packages")
+}
+
+model ProfessorAvailability {
+  id           String    @id @default(uuid())
+  professorId  String    @map("professor_id")
+  dayOfWeek    Int?      @map("day_of_week")
+  startTime    DateTime  @map("start_time") @db.Time(6)
+  endTime      DateTime  @map("end_time") @db.Time(6)
+  isRecurring  Boolean   @default(true) @map("is_recurring")
+  specificDate DateTime? @map("specific_date") @db.Date
+  isAvailable  Boolean   @default(true) @map("is_available")
+  professor    User      @relation("ProfessorAvailability", fields: [professorId], references: [id], onDelete: Cascade)
+
+  @@map("professor_availability")
+}
+
+model Lesson {
+  id               String            @id @default(uuid())
+  studentId        String            @map("student_id")
+  professorId      String            @map("professor_id")
+  studentPackageId String?           @map("student_package_id")
+  scheduledAt      DateTime          @map("scheduled_at")
+  durationMin      Int               @default(60) @map("duration_min")
+  status           LessonStatus      @default(scheduled)
+  cancellationType CancellationType? @map("cancellation_type")
+  cancelledAt      DateTime?         @map("cancelled_at")
+  isPaid           Boolean           @default(false) @map("is_paid")
+  notes            String?
+  cancelledReason  String?           @map("cancelled_reason")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  professor        User              @relation("ProfessorLessons", fields: [professorId], references: [id], onDelete: Cascade)
+  student          User              @relation("StudentLessons", fields: [studentId], references: [id], onDelete: Cascade)
+  studentPackage   StudentPackage?   @relation("PackageLessons", fields: [studentPackageId], references: [id])
+
+  @@map("lessons")
+}
+
+model Transaction {
+  id              String                 @id @default(uuid())
+  studentId       String                 @map("student_id")
+  amount          Decimal                @db.Decimal(10, 2)
+  currency        String                 @db.VarChar(3)
+  status          TransactionStatus      @default(pending)
+  paymentMethod   PaymentMethod          @map("payment_method")
+  paypalOrderId   String?                @map("paypal_order_id")
+  invoiceNumber   String?                @unique @map("invoice_number")
+  referenceType   ReferenceType          @map("reference_type")
+  referenceId     String                 @map("reference_id")
+  createdAt       DateTime               @default(now()) @map("created_at")
+  enrollments     GroupClassEnrollment[] @relation("EnrollmentTransaction")
+  studentCourses  StudentCourse[]        @relation("CourseTransaction")
+  studentPackages StudentPackage[]       @relation("PackageTransaction")
+  student         User                   @relation("StudentTransactions", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("transactions")
+}
+
+model VideoCourse {
+  id             String          @id @default(uuid())
+  title          String
+  description    String?
+  thumbnailUrl   String?         @map("thumbnail_url")
+  language       String?
+  level          CourseLevel?
+  price          Decimal         @db.Decimal(10, 2)
+  currency       String          @default("EUR") @db.VarChar(3)
+  createdBy      String          @map("created_by")
+  isPublished    Boolean         @default(false) @map("is_published")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  modules        CourseModule[]  @relation("CourseModules")
+  studentCourses StudentCourse[] @relation("StudentCourses")
+  creator        User            @relation("CourseCreator", fields: [createdBy], references: [id])
+
+  @@map("video_courses")
+}
+
+model CourseModule {
+  id              String                  @id @default(uuid())
+  courseId        String                  @map("course_id")
+  title           String
+  orderIndex      Int                     @map("order_index")
+  vimeoVideoId    String                  @map("vimeo_video_id")
+  vimeoUrl        String?                 @map("vimeo_url")
+  durationSec     Int?                    @map("duration_sec")
+  course          VideoCourse             @relation("CourseModules", fields: [courseId], references: [id], onDelete: Cascade)
+  studentProgress StudentModuleProgress[] @relation("ModuleProgress")
+
+  @@map("course_modules")
+}
+
+model StudentCourse {
+  id            String      @id @default(uuid())
+  studentId     String      @map("student_id")
+  courseId      String      @map("course_id")
+  purchasedAt   DateTime    @default(now()) @map("purchased_at")
+  transactionId String      @map("transaction_id")
+  course        VideoCourse @relation("StudentCourses", fields: [courseId], references: [id], onDelete: Cascade)
+  student       User        @relation("StudentCourses", fields: [studentId], references: [id], onDelete: Cascade)
+  transaction   Transaction @relation("CourseTransaction", fields: [transactionId], references: [id])
+
+  @@unique([studentId, courseId])
+  @@map("student_courses")
+}
+
+model StudentModuleProgress {
+  id             String       @id @default(uuid())
+  studentId      String       @map("student_id")
+  moduleId       String       @map("module_id")
+  watchedSeconds Int          @default(0) @map("watched_seconds")
+  completed      Boolean      @default(false)
+  lastWatchedAt  DateTime?    @map("last_watched_at")
+  module         CourseModule @relation("ModuleProgress", fields: [moduleId], references: [id], onDelete: Cascade)
+  student        User         @relation("StudentModuleProgress", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, moduleId])
+  @@map("student_module_progress")
+}
+
+model GroupClass {
+  id          String                 @id @default(uuid())
+  title       String
+  professorId String                 @map("professor_id")
+  scheduledAt DateTime               @map("scheduled_at")
+  durationMin Int                    @default(60) @map("duration_min")
+  maxStudents Int                    @default(10) @map("max_students")
+  price       Decimal                @db.Decimal(10, 2)
+  currency    String                 @default("EUR") @db.VarChar(3)
+  status      GroupClassStatus       @default(open)
+  enrollments GroupClassEnrollment[] @relation("ClassEnrollments")
+  professor   User                   @relation("ProfessorGroupClasses", fields: [professorId], references: [id], onDelete: Cascade)
+
+  @@map("group_classes")
+}
+
+model GroupClassEnrollment {
+  id            String      @id @default(uuid())
+  classId       String      @map("class_id")
+  studentId     String      @map("student_id")
+  enrolledAt    DateTime    @default(now()) @map("enrolled_at")
+  transactionId String      @map("transaction_id")
+  class         GroupClass  @relation("ClassEnrollments", fields: [classId], references: [id], onDelete: Cascade)
+  student       User        @relation("StudentEnrollments", fields: [studentId], references: [id], onDelete: Cascade)
+  transaction   Transaction @relation("EnrollmentTransaction", fields: [transactionId], references: [id])
+
+  @@unique([classId, studentId])
+  @@map("group_class_enrollments")
+}
 
 enum UserRole {
   student
@@ -69,256 +278,4 @@ enum GroupClassStatus {
   full
   completed
   cancelled
-}
-
-// ============================================
-// MODELS
-// ============================================
-
-model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  name         String
-  role         UserRole
-  avatarUrl    String?  @map("avatar_url")
-  createdAt    DateTime @default(now()) @map("created_at")
-
-  // Relations as Student
-  studentPackages       StudentPackage[]        @relation("StudentPackages")
-  studentLessons        Lesson[]                @relation("StudentLessons")
-  studentTransactions   Transaction[]           @relation("StudentTransactions")
-  studentCourses        StudentCourse[]         @relation("StudentCourses")
-  studentModuleProgress StudentModuleProgress[] @relation("StudentModuleProgress")
-  groupClassEnrollments GroupClassEnrollment[]  @relation("StudentEnrollments")
-
-  // Relations as Professor
-  professorPricing      ProfessorPricing[]      @relation("ProfessorPricing")
-  professorPackages     StudentPackage[]        @relation("ProfessorPackages")
-  professorLessons      Lesson[]                @relation("ProfessorLessons")
-  professorAvailability ProfessorAvailability[] @relation("ProfessorAvailability")
-  professorGroupClasses GroupClass[]            @relation("ProfessorGroupClasses")
-
-  // Relations as Admin
-  createdCourses VideoCourse[] @relation("CourseCreator")
-
-  @@map("users")
-}
-
-model Package {
-  id           String  @id @default(uuid())
-  name         String
-  lessonCount  Int     @map("lesson_count")
-  validityDays Int?    @map("validity_days")
-  isActive     Boolean @default(true) @map("is_active")
-
-  // Relations
-  studentPackages  StudentPackage[]   @relation("PackageStudents")
-  professorPricing ProfessorPricing[] @relation("PackagePricing")
-
-  @@map("packages")
-}
-
-model ProfessorPricing {
-  id          String  @id @default(uuid())
-  professorId String  @map("professor_id")
-  packageId   String  @map("package_id")
-  price       Decimal @db.Decimal(10, 2)
-  currency    String  @default("EUR") @db.VarChar(3)
-  isActive    Boolean @default(true) @map("is_active")
-
-  // Relations
-  professor User    @relation("ProfessorPricing", fields: [professorId], references: [id], onDelete: Cascade)
-  package   Package @relation("PackagePricing", fields: [packageId], references: [id], onDelete: Cascade)
-
-  @@unique([professorId, packageId])
-  @@map("professor_pricing")
-}
-
-model StudentPackage {
-  id            String        @id @default(uuid())
-  studentId     String        @map("student_id")
-  packageId     String        @map("package_id")
-  professorId   String        @map("professor_id")
-  transactionId String        @map("transaction_id")
-  activatedAt   DateTime?     @map("activated_at")
-  expiresAt     DateTime?     @map("expires_at")
-  totalLessons  Int           @map("total_lessons")
-  usedLessons   Int           @default(0) @map("used_lessons")
-  // remainingLessons is a generated column (totalLessons - usedLessons)
-  // Handled via SQL or computed in application layer
-  status        PackageStatus @default(active)
-
-  // Relations
-  student     User        @relation("StudentPackages", fields: [studentId], references: [id], onDelete: Cascade)
-  package     Package     @relation("PackageStudents", fields: [packageId], references: [id], onDelete: Cascade)
-  professor   User        @relation("ProfessorPackages", fields: [professorId], references: [id], onDelete: Cascade)
-  transaction Transaction @relation("PackageTransaction", fields: [transactionId], references: [id])
-  lessons     Lesson[]    @relation("PackageLessons")
-
-  @@map("student_packages")
-}
-
-model ProfessorAvailability {
-  id           String    @id @default(uuid())
-  professorId  String    @map("professor_id")
-  dayOfWeek    Int?      @map("day_of_week") // 0=Monday ... 6=Sunday
-  startTime    DateTime  @map("start_time") @db.Time
-  endTime      DateTime  @map("end_time") @db.Time
-  isRecurring  Boolean   @default(true) @map("is_recurring")
-  specificDate DateTime? @map("specific_date") @db.Date
-  isAvailable  Boolean   @default(true) @map("is_available")
-
-  // Relations
-  professor User @relation("ProfessorAvailability", fields: [professorId], references: [id], onDelete: Cascade)
-
-  @@map("professor_availability")
-}
-
-model Lesson {
-  id               String            @id @default(uuid())
-  studentId        String            @map("student_id")
-  professorId      String            @map("professor_id")
-  studentPackageId String?           @map("student_package_id")
-  scheduledAt      DateTime          @map("scheduled_at")
-  durationMin      Int               @default(60) @map("duration_min")
-  status           LessonStatus      @default(scheduled)
-  cancellationType CancellationType? @map("cancellation_type")
-  cancelledAt      DateTime?         @map("cancelled_at")
-  isPaid           Boolean           @default(false) @map("is_paid")
-  notes            String?           @db.Text
-  cancelledReason  String?           @map("cancelled_reason") @db.Text
-  createdAt        DateTime          @default(now()) @map("created_at")
-
-  // Relations
-  student        User            @relation("StudentLessons", fields: [studentId], references: [id], onDelete: Cascade)
-  professor      User            @relation("ProfessorLessons", fields: [professorId], references: [id], onDelete: Cascade)
-  studentPackage StudentPackage? @relation("PackageLessons", fields: [studentPackageId], references: [id], onDelete: SetNull)
-
-  @@map("lessons")
-}
-
-model Transaction {
-  id            String            @id @default(uuid())
-  studentId     String            @map("student_id")
-  amount        Decimal           @db.Decimal(10, 2)
-  currency      String            @db.VarChar(3)
-  status        TransactionStatus @default(pending)
-  paymentMethod PaymentMethod     @map("payment_method")
-  paypalOrderId String?           @map("paypal_order_id")
-  invoiceNumber String?           @unique @map("invoice_number")
-  referenceType ReferenceType     @map("reference_type")
-  referenceId   String            @map("reference_id")
-  createdAt     DateTime          @default(now()) @map("created_at")
-
-  // Relations
-  student         User                   @relation("StudentTransactions", fields: [studentId], references: [id], onDelete: Cascade)
-  studentPackages StudentPackage[]       @relation("PackageTransaction")
-  studentCourses  StudentCourse[]        @relation("CourseTransaction")
-  enrollments     GroupClassEnrollment[] @relation("EnrollmentTransaction")
-
-  @@map("transactions")
-}
-
-model VideoCourse {
-  id           String       @id @default(uuid())
-  title        String
-  description  String?      @db.Text
-  thumbnailUrl String?      @map("thumbnail_url")
-  language     String?
-  level        CourseLevel?
-  price        Decimal      @db.Decimal(10, 2)
-  currency     String       @default("EUR") @db.VarChar(3)
-  createdBy    String       @map("created_by")
-  isPublished  Boolean      @default(false) @map("is_published")
-  createdAt    DateTime     @default(now()) @map("created_at")
-
-  // Relations
-  creator        User            @relation("CourseCreator", fields: [createdBy], references: [id])
-  modules        CourseModule[]  @relation("CourseModules")
-  studentCourses StudentCourse[] @relation("StudentCourses")
-
-  @@map("video_courses")
-}
-
-model CourseModule {
-  id           String  @id @default(uuid())
-  courseId     String  @map("course_id")
-  title        String
-  orderIndex   Int     @map("order_index")
-  vimeoVideoId String  @map("vimeo_video_id")
-  vimeoUrl     String? @map("vimeo_url")
-  durationSec  Int?    @map("duration_sec")
-
-  // Relations
-  course          VideoCourse             @relation("CourseModules", fields: [courseId], references: [id], onDelete: Cascade)
-  studentProgress StudentModuleProgress[] @relation("ModuleProgress")
-
-  @@map("course_modules")
-}
-
-model StudentCourse {
-  id            String   @id @default(uuid())
-  studentId     String   @map("student_id")
-  courseId      String   @map("course_id")
-  purchasedAt   DateTime @default(now()) @map("purchased_at")
-  transactionId String   @map("transaction_id")
-
-  // Relations
-  student     User        @relation("StudentCourses", fields: [studentId], references: [id], onDelete: Cascade)
-  course      VideoCourse @relation("StudentCourses", fields: [courseId], references: [id], onDelete: Cascade)
-  transaction Transaction @relation("CourseTransaction", fields: [transactionId], references: [id])
-
-  @@unique([studentId, courseId])
-  @@map("student_courses")
-}
-
-model StudentModuleProgress {
-  id             String    @id @default(uuid())
-  studentId      String    @map("student_id")
-  moduleId       String    @map("module_id")
-  watchedSeconds Int       @default(0) @map("watched_seconds")
-  completed      Boolean   @default(false)
-  lastWatchedAt  DateTime? @map("last_watched_at")
-
-  // Relations
-  student User         @relation("StudentModuleProgress", fields: [studentId], references: [id], onDelete: Cascade)
-  module  CourseModule @relation("ModuleProgress", fields: [moduleId], references: [id], onDelete: Cascade)
-
-  @@unique([studentId, moduleId])
-  @@map("student_module_progress")
-}
-
-model GroupClass {
-  id          String           @id @default(uuid())
-  title       String
-  professorId String           @map("professor_id")
-  scheduledAt DateTime         @map("scheduled_at")
-  durationMin Int              @default(60) @map("duration_min")
-  maxStudents Int              @default(10) @map("max_students")
-  price       Decimal          @db.Decimal(10, 2)
-  currency    String           @default("EUR") @db.VarChar(3)
-  status      GroupClassStatus @default(open)
-
-  // Relations
-  professor   User                   @relation("ProfessorGroupClasses", fields: [professorId], references: [id], onDelete: Cascade)
-  enrollments GroupClassEnrollment[] @relation("ClassEnrollments")
-
-  @@map("group_classes")
-}
-
-model GroupClassEnrollment {
-  id            String   @id @default(uuid())
-  classId       String   @map("class_id")
-  studentId     String   @map("student_id")
-  enrolledAt    DateTime @default(now()) @map("enrolled_at")
-  transactionId String   @map("transaction_id")
-
-  // Relations
-  class       GroupClass  @relation("ClassEnrollments", fields: [classId], references: [id], onDelete: Cascade)
-  student     User        @relation("StudentEnrollments", fields: [studentId], references: [id], onDelete: Cascade)
-  transaction Transaction @relation("EnrollmentTransaction", fields: [transactionId], references: [id])
-
-  @@unique([classId, studentId])
-  @@map("group_class_enrollments")
 }
