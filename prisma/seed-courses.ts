@@ -31,9 +31,10 @@ async function seedCourses() {
           {
             title: 'Introduction & Spanish Alphabet',
             orderIndex: 1,
-            vimeoVideoId: '123456789',
-            vimeoUrl: 'https://vimeo.com/123456789',
+            vimeoVideoId: '76979871',
+            vimeoUrl: 'https://vimeo.com/76979871',
             durationSec: 600,
+            isPreview: true,
           },
           {
             title: 'Basic Greetings & Introductions',
@@ -91,9 +92,10 @@ async function seedCourses() {
           {
             title: 'Professional Email Writing',
             orderIndex: 1,
-            vimeoVideoId: '223456789',
-            vimeoUrl: 'https://vimeo.com/223456789',
+            vimeoVideoId: '22439234',
+            vimeoUrl: 'https://vimeo.com/22439234',
             durationSec: 840,
+            isPreview: true,
           },
           {
             title: 'Business Vocabulary & Expressions',
@@ -144,9 +146,10 @@ async function seedCourses() {
           {
             title: 'At the Restaurant',
             orderIndex: 1,
-            vimeoVideoId: '323456789',
-            vimeoUrl: 'https://vimeo.com/323456789',
+            vimeoVideoId: '146022717',
+            vimeoUrl: 'https://vimeo.com/146022717',
             durationSec: 660,
+            isPreview: true,
           },
           {
             title: 'Shopping & Bargaining',
@@ -190,9 +193,10 @@ async function seedCourses() {
           {
             title: 'German Cases Explained',
             orderIndex: 1,
-            vimeoVideoId: '423456789',
-            vimeoUrl: 'https://vimeo.com/423456789',
+            vimeoVideoId: '76979871',
+            vimeoUrl: 'https://vimeo.com/76979871',
             durationSec: 1200,
+            isPreview: true,
           },
           {
             title: 'Verb Conjugation Patterns',

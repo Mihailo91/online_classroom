@@ -79,6 +79,17 @@ An online classroom platform for a language school, enabling students to purchas
 - Final charged amount, applied discount amount, and coupon code must be stored with the transaction for auditability.
 - Coupons are promotional discounts only; they do **not** override cancellation, refund, or package validity rules.
 
+### 4.5 Public Course Previews
+- Some course modules may be exposed as **public previews** before purchase.
+- Preview modules are marked with a dedicated boolean flag (`is_preview`).
+- Non-purchased visitors may:
+  - see the full module list,
+  - play only modules marked as previews,
+  - see all other modules as locked content.
+- Purchased students keep access to all modules through the protected learning area.
+- Preview playback is intended for marketing and conversion; it does **not** grant paid-course access.
+- Preview playback should not create student progress records unless preview analytics are explicitly introduced later.
+
 ---
 
 ## 5. Database Schema
@@ -224,6 +235,7 @@ id              UUID PK
 course_id       UUID FK -> video_courses
 title           VARCHAR NOT NULL
 order_index     INT NOT NULL
+is_preview      BOOLEAN DEFAULT FALSE
 vimeo_video_id  VARCHAR NOT NULL   -- Vimeo numeric video ID (e.g. "123456789")
 vimeo_url       VARCHAR            -- Full Vimeo URL (for reference/display)
 duration_sec    INT                -- Video duration in seconds (from Vimeo API or manual)

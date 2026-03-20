@@ -27,7 +27,9 @@ export async function GET(
             title: true,
             orderIndex: true,
             durationSec: true,
-            // Don't include vimeoVideoId or vimeoUrl in public view
+            isPreview: true,
+            vimeoVideoId: true,
+            vimeoUrl: true,
           },
           orderBy: {
             orderIndex: "asc",
@@ -56,6 +58,15 @@ export async function GET(
 
     return NextResponse.json({
       ...course,
+      modules: course.modules.map((module) => ({
+        id: module.id,
+        title: module.title,
+        orderIndex: module.orderIndex,
+        durationSec: module.durationSec,
+        isPreview: module.isPreview,
+        previewVideoId: module.isPreview ? module.vimeoVideoId : null,
+        previewVideoUrl: module.isPreview ? module.vimeoUrl : null,
+      })),
       moduleCount: course.modules.length,
       totalDuration,
       enrollmentCount: course._count.studentCourses,
