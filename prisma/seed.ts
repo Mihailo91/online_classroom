@@ -122,6 +122,60 @@ async function main() {
   });
   console.log('✅ Professor pricing configured');
 
+  await prisma.professorAvailability.createMany({
+    data: [
+      {
+        professorId: professor1.id,
+        dayOfWeek: 1,
+        startTime: new Date('1970-01-01T09:00:00Z'),
+        endTime: new Date('1970-01-01T12:00:00Z'),
+        isRecurring: true,
+        isAvailable: true,
+      },
+      {
+        professorId: professor1.id,
+        dayOfWeek: 3,
+        startTime: new Date('1970-01-01T14:00:00Z'),
+        endTime: new Date('1970-01-01T18:00:00Z'),
+        isRecurring: true,
+        isAvailable: true,
+      },
+      {
+        professorId: professor1.id,
+        dayOfWeek: 5,
+        startTime: new Date('1970-01-01T10:00:00Z'),
+        endTime: new Date('1970-01-01T13:00:00Z'),
+        isRecurring: true,
+        isAvailable: true,
+      },
+      {
+        professorId: professor2.id,
+        dayOfWeek: 2,
+        startTime: new Date('1970-01-01T08:00:00Z'),
+        endTime: new Date('1970-01-01T11:00:00Z'),
+        isRecurring: true,
+        isAvailable: true,
+      },
+      {
+        professorId: professor2.id,
+        dayOfWeek: 4,
+        startTime: new Date('1970-01-01T15:00:00Z'),
+        endTime: new Date('1970-01-01T19:00:00Z'),
+        isRecurring: true,
+        isAvailable: true,
+      },
+      {
+        professorId: professor2.id,
+        dayOfWeek: 6,
+        startTime: new Date('1970-01-01T09:00:00Z'),
+        endTime: new Date('1970-01-01T12:00:00Z'),
+        isRecurring: true,
+        isAvailable: true,
+      },
+    ],
+  });
+  console.log('✅ Professor availability configured');
+
   // Create Sample Video Course
   const course = await prisma.videoCourse.create({
     data: {
@@ -143,9 +197,10 @@ async function main() {
         courseId: course.id,
         title: 'Introduction & Greetings',
         orderIndex: 1,
-        vimeoVideoId: '123456789',
-        vimeoUrl: 'https://vimeo.com/123456789',
+        vimeoVideoId: '76979871',
+        vimeoUrl: 'https://vimeo.com/76979871',
         durationSec: 600,
+        isPreview: true,
       },
       {
         courseId: course.id,
@@ -154,10 +209,42 @@ async function main() {
         vimeoVideoId: '987654321',
         vimeoUrl: 'https://vimeo.com/987654321',
         durationSec: 900,
+        isPreview: false,
       },
     ],
   });
   console.log('✅ Sample video course created');
+
+  await prisma.coupon.createMany({
+    data: [
+      {
+        code: 'WELCOME10',
+        description: '10% off for new students',
+        discountType: 'percentage',
+        discountValue: 10,
+        applicableTo: 'course',
+        isActive: true,
+      },
+      {
+        code: 'LESSON15',
+        description: '15 EUR off private lesson purchases',
+        discountType: 'fixed',
+        discountValue: 15,
+        currency: 'EUR',
+        applicableTo: 'single_lesson',
+        isActive: true,
+      },
+      {
+        code: 'PACK20',
+        description: '20% off lesson packages',
+        discountType: 'percentage',
+        discountValue: 20,
+        applicableTo: 'package',
+        isActive: true,
+      },
+    ],
+  });
+  console.log('✅ Coupons created');
 
   console.log('🎉 Database seeded successfully!');
   console.log('\n📝 Test Credentials:');

@@ -2,14 +2,21 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { PayPalButton } from "@/components/payment/paypal-button";
 
 interface PageProps {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ preview?: string }>;
 }
 
-export default async function CourseLandingPage({ params }: PageProps) {
+export default async function CourseLandingPage({
+  params,
+  searchParams,
+}: PageProps) {
   const session = await auth();
   const { id } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const previewQuery = resolvedSearchParams?.preview;
 
   // Fetch course with full details
   const course = await prisma.videoCourse.findUnique({
@@ -26,6 +33,8 @@ export default async function CourseLandingPage({ params }: PageProps) {
           title: true,
           orderIndex: true,
           durationSec: true,
+          isPreview: true,
+          vimeoVideoId: true,
         },
         orderBy: {
           orderIndex: "asc",
@@ -56,6 +65,9 @@ export default async function CourseLandingPage({ params }: PageProps) {
   const hours = Math.floor(totalDuration / 3600);
   const minutes = Math.floor((totalDuration % 3600) / 60);
   const durationText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+  const previewModules = course.modules.filter((module) => module.isPreview);
+  const activePreviewModule =
+    previewModules.find((module) => module.id === previewQuery) ?? previewModules[0] ?? null;
 
   // Format price
   const priceText = new Intl.NumberFormat("en-US", {
@@ -158,6 +170,39 @@ export default async function CourseLandingPage({ params }: PageProps) {
         <div className="grid gap-8 lg:grid-cols-3">
           {/* Left: Course Details */}
           <div className="lg:col-span-2">
+            {activePreviewModule && (
+              <section className="mb-8 rounded-lg border border-blue-200 bg-blue-50 p-5">
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
+                      Free preview
+                    </p>
+                    <h2 className="mt-1 text-2xl font-bold text-gray-900">
+                      {activePreviewModule.title}
+                    </h2>
+                    <p className="mt-2 text-sm text-gray-600">
+                      Watch this preview lesson before purchasing the full course.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-white px-3 py-1 text-sm font-medium text-blue-700">
+                    Preview available
+                  </span>
+                </div>
+
+                <div className="overflow-hidden rounded-lg bg-black shadow-sm">
+                  <div className="aspect-video">
+                    <iframe
+                      src={`https://player.vimeo.com/video/${activePreviewModule.vimeoVideoId}?dnt=1`}
+                      title={`${activePreviewModule.title} preview`}
+                      className="h-full w-full"
+                      allow="autoplay; fullscreen; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                </div>
+              </section>
+            )}
+
             {/* Course Modules */}
             <section className="mb-8">
               <h2 className="mb-4 text-2xl font-bold text-gray-900">
@@ -183,13 +228,30 @@ export default async function CourseLandingPage({ params }: PageProps) {
                           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-sm font-medium text-gray-700">
                             {index + 1}
                           </span>
-                          <span className="font-medium text-gray-900">
-                            {module.title}
-                          </span>
+                          <div>
+                            <div className="font-medium text-gray-900">{module.title}</div>
+                            {module.isPreview ? (
+                              <Link
+                                href={`/courses/${course.id}?preview=${module.id}`}
+                                className="text-xs font-medium text-blue-600 hover:underline"
+                              >
+                                Watch free preview
+                              </Link>
+                            ) : (
+                              <div className="text-xs text-gray-500">
+                                Locked until purchase
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <span className="text-sm text-gray-500">
-                          {modDurationText}
-                        </span>
+                        <div className="flex items-center gap-3">
+                          {module.isPreview && (
+                            <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                              Free Preview
+                            </span>
+                          )}
+                          <span className="text-sm text-gray-500">{modDurationText}</span>
+                        </div>
                       </div>
                     </div>
                   );
@@ -254,17 +316,11 @@ export default async function CourseLandingPage({ params }: PageProps) {
                 </div>
               ) : (
                 // State 2: Logged in, not purchased
-                <div>
-                  <button
-                    className="mb-3 block w-full rounded-lg bg-blue-600 px-6 py-3 text-center font-semibold text-white hover:bg-blue-700"
-                    onClick={() => alert("PayPal integration coming soon!")}
-                  >
-                    Buy Now - {priceText}
-                  </button>
-                  <p className="text-center text-xs text-gray-500">
-                    30-day money-back guarantee
-                  </p>
-                </div>
+                <PayPalButton
+                  courseId={course.id}
+                  price={Number(course.price)}
+                  currency={course.currency}
+                />
               )}
 
               {/* What's Included */}

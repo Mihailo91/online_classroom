@@ -26,6 +26,7 @@ model User {
   professorPackages     StudentPackage[]        @relation("ProfessorPackages")
   studentPackages       StudentPackage[]        @relation("StudentPackages")
   studentTransactions   Transaction[]           @relation("StudentTransactions")
+  couponRedemptions     CouponRedemption[]      @relation("StudentCouponRedemptions")
   createdCourses        VideoCourse[]           @relation("CourseCreator")
 
   @@map("users")
@@ -123,13 +124,52 @@ model Transaction {
   invoiceNumber   String?                @unique @map("invoice_number")
   referenceType   ReferenceType          @map("reference_type")
   referenceId     String                 @map("reference_id")
+  couponId        String?                @map("coupon_id")
+  couponCode      String?                @map("coupon_code")
+  discountAmount  Decimal                @default(0) @map("discount_amount") @db.Decimal(10, 2)
   createdAt       DateTime               @default(now()) @map("created_at")
   enrollments     GroupClassEnrollment[] @relation("EnrollmentTransaction")
   studentCourses  StudentCourse[]        @relation("CourseTransaction")
   studentPackages StudentPackage[]       @relation("PackageTransaction")
+  couponRedemption CouponRedemption?
+  coupon          Coupon?                @relation("CouponTransactions", fields: [couponId], references: [id], onDelete: SetNull)
   student         User                   @relation("StudentTransactions", fields: [studentId], references: [id], onDelete: Cascade)
 
   @@map("transactions")
+}
+
+model Coupon {
+  id              String             @id @default(uuid())
+  code            String             @unique
+  description     String?
+  discountType    DiscountType       @map("discount_type")
+  discountValue   Decimal            @map("discount_value") @db.Decimal(10, 2)
+  currency        String?            @db.VarChar(3)
+  applicableTo    ReferenceType?     @map("applicable_to")
+  validFrom       DateTime?          @map("valid_from")
+  validUntil      DateTime?          @map("valid_until")
+  maxTotalUses    Int?               @map("max_total_uses")
+  maxUsesPerUser  Int?               @map("max_uses_per_user")
+  isActive        Boolean            @default(true) @map("is_active")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  redemptions     CouponRedemption[]
+  transactions    Transaction[]      @relation("CouponTransactions")
+
+  @@map("coupons")
+}
+
+model CouponRedemption {
+  id             String      @id @default(uuid())
+  couponId       String      @map("coupon_id")
+  studentId      String      @map("student_id")
+  transactionId  String      @unique @map("transaction_id")
+  redeemedAt     DateTime    @default(now()) @map("redeemed_at")
+  discountAmount Decimal     @map("discount_amount") @db.Decimal(10, 2)
+  coupon         Coupon      @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  student        User        @relation("StudentCouponRedemptions", fields: [studentId], references: [id], onDelete: Cascade)
+  transaction    Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@map("coupon_redemptions")
 }
 
 model VideoCourse {
@@ -159,6 +199,7 @@ model CourseModule {
   vimeoVideoId    String                  @map("vimeo_video_id")
   vimeoUrl        String?                 @map("vimeo_url")
   durationSec     Int?                    @map("duration_sec")
+  isPreview       Boolean                 @default(false) @map("is_preview")
   course          VideoCourse             @relation("CourseModules", fields: [courseId], references: [id], onDelete: Cascade)
   studentProgress StudentModuleProgress[] @relation("ModuleProgress")
 
@@ -258,6 +299,11 @@ enum TransactionStatus {
 enum PaymentMethod {
   paypal
   card
+}
+
+enum DiscountType {
+  percentage
+  fixed
 }
 
 enum ReferenceType {

@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export function PrivateLessonsCTA() {
   return (
-    <section className="bg-blue-600 py-16">
+    <section id="private-lessons" className="bg-blue-600 py-16 scroll-mt-24">
       <div className="container mx-auto px-4 text-center">
         {/* Icon */}
         <div className="mb-6 flex justify-center">

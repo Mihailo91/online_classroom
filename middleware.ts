@@ -8,7 +8,7 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
 
   // Public routes that don't require authentication
-  const publicRoutes = ["/", "/login", "/register", "/courses"];
+  const publicRoutes = ["/", "/login", "/register", "/courses", "/lessons"];
   const isPublicRoute = publicRoutes.some((route) => 
     pathname === route || pathname.startsWith(`${route}/`)
   );
