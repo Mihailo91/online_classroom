@@ -2,7 +2,7 @@
 
 ## 1. Project Overview
 
-An online classroom platform for a language school, enabling students to purchase and attend 1-on-1 lessons, watch video courses, and join group classes. The platform supports three user roles: **Student**, **Professor**, and **Admin**.
+An online classroom platform for a language school, enabling students to purchase and attend 1-on-1 lessons, watch video courses, and sign up for group classes. The platform supports three user roles: **Student**, **Professor**, and **Admin**.
 
 ---
 
