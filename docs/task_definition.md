@@ -1,5 +1,7 @@
 # Technical Specification: Online Language School Platform
 
+For technical implementation details, see @docs/tach_specification.md
+
 ---
 ## Tech Stack
 

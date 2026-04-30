@@ -1,5 +1,8 @@
 # Copilot Instructions — Online Language School Platform
 
+For technical implementation details, see tach_specification.md
+For business context and requirements, see @docs/task_definition.md
+
 ## Tech Stack
 
 | Layer | Technology |
