@@ -142,11 +142,14 @@ Here he can reasign student to different teacher or schedule a class for specifi
 - Admin can manually extend a package's expiry date.
 
 ### 7.4 Per-teacher Pricing
+
 - Admin can set teacher price per lesson type (single class, 4-pack, 8-pack, 12-pack).
-- Since teacher works in the school he earns fixed amount per `lesson price_per_teacher` (it is not exactly the same for all students)
+- Since teacher works in the school he earns agreed amount of money per lesson `price_per_teacher` (it is not exactly the same for all students).
+For example price per 1 private lesson is 30euro, 13e goes to teacher and 17euro goes to school. When we review teacher earning we should use 13e in calculation
+- price_per_teacher is not the same for private lessons and group_lessons
 - Prices are stored in `teacher_pricing` column and displayed to students during the purchase flow.
 - When a student selects a teacher, the prices shown are that teacher's specific rates.
-- ssudets with coupen can have discounts 
+- students with coupon can have discounts 
 
 ### 7.5 Coupons & Promotional Discounts
 - The platform supports **coupons** as a promotional discount mechanism.
